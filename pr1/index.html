@@ -393,7 +393,32 @@
 
     // ── Storage ────────────────────────────────────────────────────────
     const persist = () => localStorage.setItem('kb_cards', JSON.stringify(cards));
-    const hydrate = () => { const s = localStorage.getItem('kb_cards'); cards = s ? JSON.parse(s) : []; };
+
+    const SEED_CARDS = [
+        { id: 'seed-1', title: 'Kanban board webapp', description: 'Built in ~/Projects/playground/pr1 — HTML/CSS/JS, two users (Lio + Goyo), drag & drop, localStorage.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-2', title: 'Pool & screen enclosure design', description: 'Design doc, materials list, floor plan, cost estimate (~$6.5k–$11k DIY). Saved in leofle/pool-design repo.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-3', title: 'Find contractors near Leander TX', description: 'Researched 5 contractors: Texas Patio Covers, Lone Star Patio, FDR Custom Enclosures, Custom Solutions, A Quality Assured.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-4', title: 'Send quote requests to contractors', description: 'Sent to FDR Custom Enclosures + Lone Star Patio. Still need: Texas Patio Covers, Custom Solutions Construction, A Quality Assured.', status: 'inprogress', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-5', title: 'Connect Gmail to Goyo', description: 'OAuth set up with leofle@gmail.com. Goyo can now send/read emails.', status: 'done', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+        { id: 'seed-6', title: 'Set up GitHub access', description: 'gh CLI installed and authenticated as leofle. Created playground + pool-design repos.', status: 'done', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+        { id: 'seed-7', title: 'Get contractor quotes back', description: 'Waiting for responses from FDR and Lone Star Patio. Compare vs DIY estimate.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+        { id: 'seed-8', title: 'Send remaining contractor emails', description: 'Still need to email: Texas Patio Covers, Custom Solutions Construction, A Quality Assured.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-9', title: 'Pool design — build sequence / Phase 3', description: 'Write out the build order and contractor notes for the pool + screen enclosure project.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-10', title: 'Get actual backyard dimensions', description: 'Measure the backyard to refine floor plan beyond estimated 20x22ft.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+    ];
+
+    const hydrate = () => {
+        const s = localStorage.getItem('kb_cards');
+        if (s) {
+            cards = JSON.parse(s);
+            // merge in any seed cards not already present
+            SEED_CARDS.forEach(seed => {
+                if (!cards.find(c => c.id === seed.id)) cards.push(seed);
+            });
+        } else {
+            cards = [...SEED_CARDS];
+        }
+    };
 
     // ── Auth ───────────────────────────────────────────────────────────
     function login(user) {
