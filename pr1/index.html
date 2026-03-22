@@ -392,7 +392,12 @@
     let modal = { status: 'todo', editId: null };
 
     // ── Storage ────────────────────────────────────────────────────────
-    const persist = () => localStorage.setItem('kb_cards', JSON.stringify(cards));
+    const persist = () => {
+        const json = JSON.stringify(cards);
+        localStorage.setItem('kb_cards', json);
+        fetch('/api/cards', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: json })
+            .catch(() => {}); // fire-and-forget; ignore if server is down
+    };
 
     const SEED_CARDS = [
         { id: 'seed-1', title: 'Kanban board webapp', description: 'Built in ~/Projects/playground/pr1 — HTML/CSS/JS, two users (Lio + Goyo), drag & drop, localStorage.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
@@ -407,16 +412,30 @@
         { id: 'seed-10', title: 'Get actual backyard dimensions', description: 'Measure the backyard to refine floor plan beyond estimated 20x22ft.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
     ];
 
-    const hydrate = () => {
-        const s = localStorage.getItem('kb_cards');
-        if (s) {
-            cards = JSON.parse(s);
-            // merge in any seed cards not already present
-            SEED_CARDS.forEach(seed => {
-                if (!cards.find(c => c.id === seed.id)) cards.push(seed);
-            });
-        } else {
-            cards = [...SEED_CARDS];
+    const mergeSeeds = () => {
+        SEED_CARDS.forEach(seed => {
+            if (!cards.find(c => c.id === seed.id)) cards.push(seed);
+        });
+    };
+
+    const hydrate = async () => {
+        try {
+            const res = await fetch('/api/cards');
+            if (!res.ok) throw new Error('non-ok');
+            const data = await res.json();
+            cards = data;
+            mergeSeeds();
+            // sync localStorage with server state
+            localStorage.setItem('kb_cards', JSON.stringify(cards));
+        } catch {
+            // server unavailable — fall back to localStorage
+            const s = localStorage.getItem('kb_cards');
+            if (s) {
+                cards = JSON.parse(s);
+                mergeSeeds();
+            } else {
+                cards = [...SEED_CARDS];
+            }
         }
     };
 
@@ -601,9 +620,10 @@
     });
 
     // ── Boot ───────────────────────────────────────────────────────────
-    hydrate();
-    const saved = localStorage.getItem('kb_user');
-    if (saved) login(saved);
+    hydrate().then(() => {
+        const saved = localStorage.getItem('kb_user');
+        if (saved) login(saved);
+    });
 </script>
 </body>
 </html>
