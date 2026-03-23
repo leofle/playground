@@ -480,11 +480,6 @@
     }
 
     function buildCard(c) {
-    const dragHandle = document.createElement('div');
-    dragHandle.className = 'drag-handle';
-    dragHandle.addEventListener('dragstart', dStart);
-    dragHandle.addEventListener('dragend', dEnd);
-
         const el = document.createElement('div');
         const aClass = c.assignedTo === 'unassigned' ? 'unassigned' : c.assignedTo;
         el.className = `card al-${aClass}`;
@@ -492,6 +487,8 @@
         el.draggable = true;
         el.addEventListener('dragstart', dStart);
         el.addEventListener('dragend',   dEnd);
+        el.addEventListener('touchstart', touchStart);
+        el.addEventListener('touchend', touchEnd);
 
         const si = COLS.indexOf(c.status);
 
@@ -604,6 +601,18 @@
     function dEnd(e) {
         e.currentTarget.classList.remove('dragging');
         dragging = null;
+    }
+
+    function touchStart(e) {
+        dragging = e.currentTarget.dataset.id;
+        e.currentTarget.classList.add('dragging');
+        e.preventDefault();
+    }
+
+    function touchEnd(e) {
+        e.currentTarget.classList.remove('dragging');
+        dragging = null;
+        e.preventDefault();
     }
 
     function onDragOver(e, col) {
