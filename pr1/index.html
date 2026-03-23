@@ -159,7 +159,7 @@
         /* ── Cards ── */
         .card {
             background: var(--surface2); border-radius: 10px;
-            padding: 0.875rem 1rem; cursor: grab;
+            padding: 0.875rem 1rem; position: relative;
             transition: transform 0.15s, box-shadow 0.15s;
             border: 1px solid transparent;
             border-left-width: 3px;
@@ -219,6 +219,13 @@
         }
         .mv:hover:not(:disabled) { background: var(--border); color: var(--text); }
         .mv:disabled { opacity: 0.25; cursor: not-allowed; }
+
+        .drag-handle {
+            position: absolute; top: 0; left: 0;
+            width: 20px; height: 100%;
+            cursor: grab; background-color: rgba(255, 255, 255, 0.1);
+        }
+        .drag-handle:hover { background-color: rgba(255, 255, 255, 0.2); }
 
         /* ── Modal ── */
         .overlay {
@@ -486,6 +493,7 @@
         const chip = `<span class="assignee-chip ${aClass}">${aClass === 'unassigned' ? 'Unassigned' : aClass}</span>`;
 
         el.innerHTML = `
+            <div class="drag-handle"></div>
             <div class="card-top">
                 <div class="card-title">${esc(c.title)}</div>
                 <div class="card-actions">
@@ -622,7 +630,13 @@
     // ── Boot ───────────────────────────────────────────────────────────
     hydrate().then(() => {
         const saved = localStorage.getItem('kb_user');
-        if (saved) login(saved);
+        if (saved) {
+            login(saved);
+        } else {
+            currentUser = null;
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app').style.display = 'none';
+        }
     });
 </script>
 </body>
