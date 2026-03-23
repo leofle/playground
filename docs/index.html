@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban Board</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface2: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --accent-lio: #6366f1;
+            --accent-goyo: #f59e0b;
+            --col-todo: #3b82f6;
+            --col-inprogress: #f59e0b;
+            --col-done: #10b981;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Login ── */
+        #login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 2.5rem;
+            padding: 2rem;
+        }
+
+        .login-hero { text-align: center; }
+        .login-icon { font-size: 3.5rem; line-height: 1; }
+        .login-title { font-size: 2.25rem; font-weight: 800; margin-top: 0.75rem; letter-spacing: -0.03em; }
+        .login-sub { color: var(--text-muted); margin-top: 0.5rem; font-size: 1.05rem; }
+
+        .user-cards { display: flex; gap: 1.25rem; flex-wrap: wrap; justify-content: center; }
+
+        .user-card {
+            background: var(--surface);
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem 2.75rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            text-align: center;
+            min-width: 170px;
+            user-select: none;
+        }
+        .user-card:hover { transform: translateY(-5px); }
+        .user-card.lio:hover  { border-color: var(--accent-lio);  box-shadow: 0 20px 40px rgba(99,102,241,.25); }
+        .user-card.goyo:hover { border-color: var(--accent-goyo); box-shadow: 0 20px 40px rgba(245,158,11,.25); }
+        .user-avatar { font-size: 3rem; line-height: 1; margin-bottom: 0.75rem; }
+        .user-name   { font-size: 1.4rem; font-weight: 700; }
+
+        /* ── App shell ── */
+        #app { display: none; flex-direction: column; min-height: 100vh; }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 0.875rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .app-title   { font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em; }
+
+        .user-badge {
+            display: flex; align-items: center; gap: 0.45rem;
+            background: var(--surface2);
+            border-radius: 20px; padding: 0.3rem 0.75rem;
+            font-size: 0.85rem; font-weight: 500;
+        }
+        .user-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .user-dot.lio  { background: var(--accent-lio); }
+        .user-dot.goyo { background: var(--accent-goyo); }
+
+        .btn {
+            background: var(--surface2); border: 1px solid var(--border);
+            color: var(--text); padding: 0.45rem 1rem;
+            border-radius: 8px; cursor: pointer; font-size: 0.85rem;
+            font-family: inherit; transition: background 0.15s;
+        }
+        .btn:hover { background: var(--border); }
+        .btn-primary { background: var(--accent-lio); border-color: var(--accent-lio); font-weight: 600; }
+        .btn-primary:hover { background: #4f52d8; border-color: #4f52d8; }
+
+        /* ── Board ── */
+        .board-wrap {
+            flex: 1; overflow-x: auto; padding: 1.5rem;
+        }
+
+        .board {
+            display: flex; gap: 1rem; align-items: flex-start;
+            min-height: calc(100vh - 130px);
+        }
+
+        .column {
+            background: var(--surface); border-radius: 14px;
+            width: 310px; min-width: 270px; flex-shrink: 0;
+            display: flex; flex-direction: column;
+            max-height: calc(100vh - 150px);
+        }
+
+        .col-header {
+            padding: 1rem 1.125rem;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            border-radius: 14px 14px 0 0;
+            background: var(--surface);
+            position: sticky; top: 0;
+        }
+
+        .col-title { display: flex; align-items: center; gap: 0.65rem; font-weight: 700; font-size: 0.9375rem; }
+        .col-pip   { width: 9px; height: 9px; border-radius: 50%; }
+
+        .col-todo      .col-pip { background: var(--col-todo); }
+        .col-inprogress .col-pip { background: var(--col-inprogress); }
+        .col-done      .col-pip { background: var(--col-done); }
+
+        .count-badge {
+            background: var(--surface2); color: var(--text-muted);
+            font-size: 0.72rem; font-weight: 600;
+            padding: 0.1rem 0.5rem; border-radius: 10px;
+        }
+
+        .add-btn {
+            background: transparent; border: none;
+            color: var(--text-muted); cursor: pointer;
+            font-size: 1.4rem; line-height: 1;
+            padding: 0.15rem 0.35rem; border-radius: 6px;
+            transition: all 0.15s;
+        }
+        .add-btn:hover { color: var(--text); background: var(--surface2); }
+
+        .cards-wrap {
+            flex: 1; overflow-y: auto;
+            padding: 0.75rem; display: flex; flex-direction: column; gap: 0.7rem;
+        }
+        .cards-wrap.drag-over { background: rgba(99,102,241,.07); border-radius: 0 0 14px 14px; }
+
+        .empty { text-align: center; color: var(--text-muted); padding: 2rem 1rem; font-size: 0.85rem; }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface2); border-radius: 10px;
+            padding: 0.875rem 1rem; position: relative;
+            transition: transform 0.15s, box-shadow 0.15s;
+            border: 1px solid transparent;
+            border-left-width: 3px;
+        }
+        .card:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.35); }
+        .card.dragging { opacity: 0.45; cursor: grabbing; }
+
+        .card.al-Lio        { border-left-color: var(--accent-lio); }
+        .card.al-Goyo       { border-left-color: var(--accent-goyo); }
+        .card.al-unassigned { border-left-color: var(--border); }
+
+        .card-top {
+            display: flex; align-items: flex-start;
+            justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem;
+        }
+        .card-title { font-weight: 600; font-size: 0.9375rem; line-height: 1.45; flex: 1; }
+        .card-actions { display: flex; gap: 0.2rem; flex-shrink: 0; }
+
+        .icon-btn {
+            background: transparent; border: none; cursor: pointer;
+            padding: 0.18rem 0.35rem; border-radius: 5px;
+            font-size: 0.78rem; color: var(--text-muted);
+            transition: all 0.15s; opacity: 0;
+        }
+        .card:hover .icon-btn { opacity: 1; }
+        .icon-btn:hover { background: rgba(255,255,255,.1); color: var(--text); }
+        .icon-btn.del:hover { background: rgba(239,68,68,.15); color: var(--danger); }
+
+        .card-desc {
+            color: var(--text-muted); font-size: 0.8125rem;
+            line-height: 1.55; margin-bottom: 0.7rem;
+        }
+
+        .card-foot {
+            display: flex; align-items: center;
+            justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;
+        }
+
+        .creator { font-size: 0.72rem; color: var(--text-muted); }
+        .creator span { color: var(--text); font-weight: 500; }
+
+        .assignee-chip {
+            display: flex; align-items: center; gap: 0.3rem;
+            font-size: 0.72rem; font-weight: 600;
+            padding: 0.2rem 0.6rem; border-radius: 10px;
+        }
+        .assignee-chip.Lio       { background: rgba(99,102,241,.15); color: #a5b4fc; }
+        .assignee-chip.Goyo      { background: rgba(245,158,11,.15); color: #fcd34d; }
+        .assignee-chip.unassigned { background: rgba(148,163,184,.1); color: var(--text-muted); }
+
+        .move-btns { display: flex; gap: 0.25rem; }
+        .mv {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); cursor: pointer;
+            padding: 0.15rem 0.45rem; border-radius: 5px;
+            font-size: 0.72rem; font-weight: 700; transition: all 0.15s;
+        }
+        .mv:hover:not(:disabled) { background: var(--border); color: var(--text); }
+        .mv:disabled { opacity: 0.25; cursor: not-allowed; }
+
+        .drag-handle {
+            position: absolute; top: 0; left: 0;
+            width: 20px; height: 100%;
+            cursor: grab; background-color: rgba(255, 255, 255, 0.1);
+        }
+        .drag-handle:hover { background-color: rgba(255, 255, 255, 0.2); }
+
+        /* ── Modal ── */
+        .overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,.65); z-index: 200;
+            align-items: center; justify-content: center;
+            padding: 1rem; backdrop-filter: blur(6px);
+        }
+        .overlay.open { display: flex; }
+
+        .modal {
+            background: var(--surface); border-radius: 18px;
+            padding: 1.625rem; width: 100%; max-width: 460px;
+            border: 1px solid var(--border);
+            box-shadow: 0 30px 60px rgba(0,0,0,.55);
+        }
+        .modal-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 1.25rem; }
+
+        .fg { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.375rem; font-weight: 500; }
+
+        input, textarea, select {
+            width: 100%; background: var(--surface2);
+            border: 1px solid var(--border); color: var(--text);
+            border-radius: 9px; padding: 0.625rem 0.875rem;
+            font-size: 0.9375rem; font-family: inherit; transition: border-color 0.15s;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-lio); }
+        textarea { resize: vertical; min-height: 80px; }
+        select option { background: #1e293b; }
+        input.err { border-color: var(--danger); }
+
+        .modal-foot { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+        /* ── Mobile ── */
+        @media (max-width: 680px) {
+            .board { flex-direction: column; min-width: unset; }
+            .column { width: 100%; min-width: unset; max-height: none; }
+            .cards-wrap { overflow: visible; }
+            .board-wrap { padding: 0.875rem; }
+            .icon-btn { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div id="login-screen">
+    <div class="login-hero">
+        <div class="login-icon">📋</div>
+        <h1 class="login-title">Kanban Board</h1>
+        <p class="login-sub">Select your name to continue</p>
+    </div>
+    <div class="user-cards">
+        <div class="user-card lio"  onclick="login('Lio')">
+            <div class="user-avatar">🧑‍💻</div>
+            <div class="user-name">Lio</div>
+        </div>
+        <div class="user-card goyo" onclick="login('Goyo')">
+            <div class="user-avatar">👨‍💼</div>
+            <div class="user-name">Goyo</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app">
+    <header>
+        <div class="header-left">
+            <span class="app-title">📋 Kanban</span>
+            <div class="user-badge">
+                <span class="user-dot" id="udot"></span>
+                <span id="uname"></span>
+            </div>
+        </div>
+        <button class="btn" onclick="logout()">Switch User</button>
+    </header>
+
+    <div class="board-wrap">
+        <div class="board">
+            <!-- To Do -->
+            <div class="column col-todo"
+                 ondragover="onDragOver(event,'todo')"
+                 ondrop="onDrop(event,'todo')"
+                 ondragleave="onDragLeave(event)">
+                <div class="col-header">
+                    <div class="col-title">
+                        <span class="col-pip"></span>
+                        To Do
+                        <span class="count-badge" id="cnt-todo">0</span>
+                    </div>
+                    <button class="add-btn" onclick="openAdd('todo')" title="Add card">+</button>
+                </div>
+                <div class="cards-wrap" id="cw-todo"></div>
+            </div>
+
+            <!-- In Progress -->
+            <div class="column col-inprogress"
+                 ondragover="onDragOver(event,'inprogress')"
+                 ondrop="onDrop(event,'inprogress')"
+                 ondragleave="onDragLeave(event)">
+                <div class="col-header">
+                    <div class="col-title">
+                        <span class="col-pip"></span>
+                        In Progress
+                        <span class="count-badge" id="cnt-inprogress">0</span>
+                    </div>
+                    <button class="add-btn" onclick="openAdd('inprogress')" title="Add card">+</button>
+                </div>
+                <div class="cards-wrap" id="cw-inprogress"></div>
+            </div>
+
+            <!-- Done -->
+            <div class="column col-done"
+                 ondragover="onDragOver(event,'done')"
+                 ondrop="onDrop(event,'done')"
+                 ondragleave="onDragLeave(event)">
+                <div class="col-header">
+                    <div class="col-title">
+                        <span class="col-pip"></span>
+                        Done
+                        <span class="count-badge" id="cnt-done">0</span>
+                    </div>
+                    <button class="add-btn" onclick="openAdd('done')" title="Add card">+</button>
+                </div>
+                <div class="cards-wrap" id="cw-done"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal ── -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+    <div class="modal">
+        <div class="modal-title" id="modal-title">Add Card</div>
+        <div class="fg">
+            <label for="f-title">Title *</label>
+            <input type="text" id="f-title" placeholder="What needs to be done?">
+        </div>
+        <div class="fg">
+            <label for="f-desc">Description</label>
+            <textarea id="f-desc" placeholder="Optional details…"></textarea>
+        </div>
+        <div class="fg">
+            <label for="f-assign">Assign to</label>
+            <select id="f-assign">
+                <option value="unassigned">— Unassigned —</option>
+                <option value="Lio">Lio</option>
+                <option value="Goyo">Goyo</option>
+            </select>
+        </div>
+        <div class="modal-foot">
+            <button class="btn" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveCard()">Save Card</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ── State ──────────────────────────────────────────────────────────
+    const COLS = ['todo', 'inprogress', 'done'];
+    let currentUser = null;
+    let cards = [];
+    let dragging = null;
+    let modal = { status: 'todo', editId: null };
+
+    // ── Storage ────────────────────────────────────────────────────────
+    const persist = () => {
+        const json = JSON.stringify(cards);
+        localStorage.setItem('kb_cards', json);
+        fetch('/api/cards', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: json })
+            .catch(() => {}); // fire-and-forget; ignore if server is down
+    };
+
+    const SEED_CARDS = [
+        { id: 'seed-1', title: 'Kanban board webapp', description: 'Built in ~/Projects/playground/pr1 — HTML/CSS/JS, two users (Lio + Goyo), drag & drop, localStorage.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-2', title: 'Pool & screen enclosure design', description: 'Design doc, materials list, floor plan, cost estimate (~$6.5k–$11k DIY). Saved in leofle/pool-design repo.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-3', title: 'Find contractors near Leander TX', description: 'Researched 5 contractors: Texas Patio Covers, Lone Star Patio, FDR Custom Enclosures, Custom Solutions, A Quality Assured.', status: 'done', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-4', title: 'Send quote requests to contractors', description: 'Sent to FDR Custom Enclosures + Lone Star Patio. Still need: Texas Patio Covers, Custom Solutions Construction, A Quality Assured.', status: 'inprogress', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-5', title: 'Connect Gmail to Goyo', description: 'OAuth set up with leofle@gmail.com. Goyo can now send/read emails.', status: 'done', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+        { id: 'seed-6', title: 'Set up GitHub access', description: 'gh CLI installed and authenticated as leofle. Created playground + pool-design repos.', status: 'done', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+        { id: 'seed-7', title: 'Get contractor quotes back', description: 'Waiting for responses from FDR and Lone Star Patio. Compare vs DIY estimate.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+        { id: 'seed-8', title: 'Send remaining contractor emails', description: 'Still need to email: Texas Patio Covers, Custom Solutions Construction, A Quality Assured.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-9', title: 'Pool design — build sequence / Phase 3', description: 'Write out the build order and contractor notes for the pool + screen enclosure project.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Goyo', createdAt: Date.now() },
+        { id: 'seed-10', title: 'Get actual backyard dimensions', description: 'Measure the backyard to refine floor plan beyond estimated 20x22ft.', status: 'todo', createdBy: 'Goyo', assignedTo: 'Lio', createdAt: Date.now() },
+    ];
+
+    const mergeSeeds = () => {
+        SEED_CARDS.forEach(seed => {
+            if (!cards.find(c => c.id === seed.id)) cards.push(seed);
+        });
+    };
+
+    const hydrate = async () => {
+        try {
+            const res = await fetch('/api/cards');
+            if (!res.ok) throw new Error('non-ok');
+            const data = await res.json();
+            cards = data;
+            mergeSeeds();
+            // sync localStorage with server state
+            localStorage.setItem('kb_cards', JSON.stringify(cards));
+        } catch {
+            // server unavailable — fall back to localStorage
+            const s = localStorage.getItem('kb_cards');
+            if (s) {
+                cards = JSON.parse(s);
+                mergeSeeds();
+            } else {
+                cards = [...SEED_CARDS];
+            }
+        }
+    };
+
+    // ── Auth ───────────────────────────────────────────────────────────
+    function login(user) {
+        currentUser = user;
+        localStorage.setItem('kb_user', user);
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'flex';
+        document.getElementById('uname').textContent = user;
+        document.getElementById('udot').className = 'user-dot ' + user.toLowerCase();
+        render();
+    }
+
+    function logout() {
+        localStorage.removeItem('kb_user');
+        currentUser = null;
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────
+    function render() {
+        COLS.forEach(col => {
+            const colCards = cards.filter(c => c.status === col);
+            document.getElementById('cnt-' + col).textContent = colCards.length;
+            const wrap = document.getElementById('cw-' + col);
+            if (!colCards.length) {
+                wrap.innerHTML = '<div class="empty">Drop cards here</div>';
+                return;
+            }
+            wrap.innerHTML = '';
+            colCards.forEach(c => wrap.appendChild(buildCard(c)));
+        });
+    }
+
+    function buildCard(c) {
+        const el = document.createElement('div');
+        const aClass = c.assignedTo === 'unassigned' ? 'unassigned' : c.assignedTo;
+        el.className = `card al-${aClass}`;
+        el.dataset.id = c.id;
+        el.draggable = true;
+        el.addEventListener('dragstart', dStart);
+        el.addEventListener('dragend',   dEnd);
+        el.addEventListener('touchstart', touchStart);
+        el.addEventListener('touchend', touchEnd);
+
+        const si = COLS.indexOf(c.status);
+
+        const chip = `<span class="assignee-chip ${aClass}">${aClass === 'unassigned' ? 'Unassigned' : aClass}</span>`;
+
+        el.innerHTML = `
+            <div class="drag-handle"></div>
+            <div class="card-top">
+                <div class="card-title">${esc(c.title)}</div>
+                <div class="card-actions">
+                    <button class="icon-btn" onclick="openEdit('${c.id}')" title="Edit">✏️</button>
+                    <button class="icon-btn del" onclick="delCard('${c.id}')" title="Delete">🗑️</button>
+                </div>
+            </div>
+            ${c.description ? `<div class="card-desc">${esc(c.description)}</div>` : ''}
+            <div class="card-foot">
+                <div class="creator">by <span>${esc(c.createdBy)}</span></div>
+                <div style="display:flex;align-items:center;gap:.45rem;">
+                    ${chip}
+                    <div class="move-btns">
+                        <button class="mv" onclick="moveCard('${c.id}',-1)" ${si===0?'disabled':''} title="Move left">←</button>
+                        <button class="mv" onclick="moveCard('${c.id}',1)"  ${si===COLS.length-1?'disabled':''} title="Move right">→</button>
+                    </div>
+                </div>
+            </div>`;
+        return el;
+    }
+
+    const esc = s => {
+        const d = document.createElement('div');
+        d.appendChild(document.createTextNode(s || ''));
+        return d.innerHTML;
+    };
+
+    // ── Card ops ───────────────────────────────────────────────────────
+    const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+    function moveCard(id, dir) {
+        const c = cards.find(x => x.id === id);
+        if (!c) return;
+        const ni = COLS.indexOf(c.status) + dir;
+        if (ni >= 0 && ni < COLS.length) { c.status = COLS[ni]; persist(); render(); }
+    }
+
+    function delCard(id) {
+        if (!confirm('Delete this card?')) return;
+        cards = cards.filter(c => c.id !== id);
+        persist(); render();
+    }
+
+    // ── Modal ──────────────────────────────────────────────────────────
+    function openAdd(status) {
+        modal = { status, editId: null };
+        document.getElementById('modal-title').textContent = 'Add Card';
+        document.getElementById('f-title').value = '';
+        document.getElementById('f-desc').value = '';
+        document.getElementById('f-assign').value = 'unassigned';
+        document.getElementById('overlay').classList.add('open');
+        setTimeout(() => document.getElementById('f-title').focus(), 50);
+    }
+
+    function openEdit(id) {
+        const c = cards.find(x => x.id === id);
+        if (!c) return;
+        modal = { status: c.status, editId: id };
+        document.getElementById('modal-title').textContent = 'Edit Card';
+        document.getElementById('f-title').value = c.title;
+        document.getElementById('f-desc').value = c.description || '';
+        document.getElementById('f-assign').value = c.assignedTo || 'unassigned';
+        document.getElementById('overlay').classList.add('open');
+        setTimeout(() => document.getElementById('f-title').focus(), 50);
+    }
+
+    function closeModal() {
+        document.getElementById('overlay').classList.remove('open');
+        document.getElementById('f-title').classList.remove('err');
+    }
+
+    function overlayClick(e) {
+        if (e.target === document.getElementById('overlay')) closeModal();
+    }
+
+    function saveCard() {
+        const title = document.getElementById('f-title').value.trim();
+        if (!title) {
+            document.getElementById('f-title').classList.add('err');
+            document.getElementById('f-title').focus();
+            return;
+        }
+        const desc     = document.getElementById('f-desc').value.trim();
+        const assigned = document.getElementById('f-assign').value;
+
+        if (modal.editId) {
+            const c = cards.find(x => x.id === modal.editId);
+            if (c) { c.title = title; c.description = desc; c.assignedTo = assigned; }
+        } else {
+            cards.push({ id: uid(), title, description: desc, status: modal.status,
+                         createdBy: currentUser, assignedTo: assigned, createdAt: Date.now() });
+        }
+        persist(); closeModal(); render();
+    }
+
+    // ── Drag & Drop ────────────────────────────────────────────────────
+    function dStart(e) {
+        dragging = e.currentTarget.dataset.id;
+        e.currentTarget.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+
+    function dEnd(e) {
+        e.currentTarget.classList.remove('dragging');
+        dragging = null;
+    }
+
+    function touchStart(e) {
+        dragging = e.currentTarget.dataset.id;
+        e.currentTarget.classList.add('dragging');
+        e.preventDefault();
+    }
+
+    function touchEnd(e) {
+        e.currentTarget.classList.remove('dragging');
+        dragging = null;
+        e.preventDefault();
+    }
+
+    function onDragOver(e, col) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        document.getElementById('cw-' + col).classList.add('drag-over');
+    }
+
+    function onDragLeave(e) {
+        const cw = e.currentTarget.querySelector('.cards-wrap');
+        if (cw) cw.classList.remove('drag-over');
+    }
+
+    function onDrop(e, col) {
+        e.preventDefault();
+        document.getElementById('cw-' + col).classList.remove('drag-over');
+        if (!dragging) return;
+        const c = cards.find(x => x.id === dragging);
+        if (c && c.status !== col) { c.status = col; persist(); render(); }
+    }
+
+    // ── Keyboard ───────────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeModal();
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' &&
+            document.getElementById('overlay').classList.contains('open')) saveCard();
+    });
+
+    // ── Boot ───────────────────────────────────────────────────────────
+    hydrate().then(() => {
+        const saved = localStorage.getItem('kb_user');
+        if (saved) {
+            login(saved);
+        } else {
+            currentUser = null;
+            document.getElementById('login-screen').style.display = 'flex';
+            document.getElementById('app').style.display = 'none';
+        }
+    });
+</script>
+</body>
+</html>
