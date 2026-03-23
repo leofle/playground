@@ -480,6 +480,11 @@
     }
 
     function buildCard(c) {
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'drag-handle';
+    dragHandle.addEventListener('dragstart', dStart);
+    dragHandle.addEventListener('dragend', dEnd);
+
         const el = document.createElement('div');
         const aClass = c.assignedTo === 'unassigned' ? 'unassigned' : c.assignedTo;
         el.className = `card al-${aClass}`;
